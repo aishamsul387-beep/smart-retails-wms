@@ -219,7 +219,7 @@ function getInventoryAvailableQty(record: any): number {
   if (value !== '') return normalizeQty(value);
 
   return normalizeQty(
-    getValue(record, ['qty', 'Qty', 'quantity', 'Quantity', 'batchQty', 'Batch Qty', 'stockQty', 'Stock Qty'], 0),
+    getValue(record, ['qty', 'Qty', 'quantity', 'Quantity', 'batchQty', 'Batch Qty', 'stockQty', 'Stock Qty'], '0'),
   );
 }
 
@@ -1075,7 +1075,7 @@ export default function DOFormModal({ open, mode, initialData, onCancel, onSubmi
           </Col>
         </Row>
 
-        <Divider orientation="left">Delivery Order Items - Inventory Based</Divider>
+        <Divider titlePlacement="start">Delivery Order Items - Inventory Based</Divider>
 
         {!isView && (
           <Space style={{ marginBottom: 12 }} wrap>
@@ -1119,3 +1119,4 @@ export default function DOFormModal({ open, mode, initialData, onCancel, onSubmi
     </Modal>
   );
 }
+
