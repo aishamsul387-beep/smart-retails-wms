@@ -1,0 +1,98 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f0f2f5;
+}
+/* =========================================================
+   WMS BLUE SIDEBAR THEME
+   ========================================================= */
+
+:root {
+  --wms-sidebar-blue: #0f3d75;
+  --wms-sidebar-submenu-blue: #0a2c57;
+  --wms-sidebar-hover-blue: #1559a6;
+  --wms-sidebar-selected-blue: #1677ff;
+  --wms-sidebar-text: #dbeafe;
+}
+
+/* Main Ant Design sidebar */
+.ant-layout-sider,
+.ant-layout-sider-children {
+  background: var(--wms-sidebar-blue) !important;
+}
+
+/* Main dark menu */
+.ant-layout-sider .ant-menu-dark,
+.ant-layout-sider .ant-menu-dark > .ant-menu {
+  background: var(--wms-sidebar-blue) !important;
+}
+
+/* Submenu background */
+.ant-layout-sider .ant-menu-dark .ant-menu-sub,
+.ant-layout-sider .ant-menu-dark.ant-menu-inline .ant-menu-sub {
+  background: var(--wms-sidebar-submenu-blue) !important;
+}
+
+/* Menu text and icons */
+.ant-layout-sider .ant-menu-dark .ant-menu-item,
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu-title {
+  color: var(--wms-sidebar-text) !important;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-item .anticon,
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu-title .anticon {
+  color: #bfdbfe !important;
+}
+
+/* Hovered menu items */
+.ant-layout-sider .ant-menu-dark .ant-menu-item:hover,
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu-title:hover {
+  background: var(--wms-sidebar-hover-blue) !important;
+  color: #ffffff !important;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-item:hover .anticon,
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu-title:hover .anticon {
+  color: #ffffff !important;
+}
+
+/* Selected menu item */
+.ant-layout-sider
+  .ant-menu-dark
+  .ant-menu-item-selected {
+  background: var(--wms-sidebar-selected-blue) !important;
+  color: #ffffff !important;
+}
+
+.ant-layout-sider
+  .ant-menu-dark
+  .ant-menu-item-selected
+  .anticon {
+  color: #ffffff !important;
+}
+
+/* Open submenu title */
+.ant-layout-sider
+  .ant-menu-dark
+  .ant-menu-submenu-open
+  > .ant-menu-submenu-title {
+  background: #103f75 !important;
+  color: #ffffff !important;
+}
+
+/* Submenu arrow */
+.ant-layout-sider .ant-menu-submenu-arrow {
+  color: #bfdbfe !important;
+}
+/* Sidebar logo/header section */
+.ant-layout-sider .sidebar-logo,
+.ant-layout-sider .logo,
+.ant-layout-sider .ant-layout-sider-logo {
+  background: var(--wms-sidebar-blue) !important;
+  color: #ffffff !important;
+}
