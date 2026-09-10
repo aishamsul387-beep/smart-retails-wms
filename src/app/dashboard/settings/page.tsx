@@ -134,8 +134,10 @@ function formatDate(value?: string): string {
 }
 
 function isActiveUser(user: WMSUser): boolean {
-  if (typeof user.isActive === 'boolean') {
-    return user.isActive;
+  const candidate = user as WMSUser & { isActive?: unknown };
+
+  if (typeof candidate.isActive === 'boolean') {
+    return candidate.isActive;
   }
 
   const status = String(user.status || 'Active').toLowerCase();

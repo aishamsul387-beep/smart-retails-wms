@@ -627,7 +627,7 @@ export default function InventoryFormModal({
       }
     >
       <Form form={form} layout="vertical" disabled={isViewMode}>
-        <title
+        <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -784,7 +784,7 @@ export default function InventoryFormModal({
           <Input />
         </Form.Item>
 
-        <Divider orientation="left">Batch / Expiry / Plant / Location</Divider>
+        <Divider titlePlacement="start">Batch / Expiry / Plant / Location</Divider>
 
         <Form.List name="batches">
           {(fields, { add, remove }) => (

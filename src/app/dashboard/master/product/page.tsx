@@ -124,6 +124,7 @@ interface InventoryRecord {
   currentQty?: number;
   stockBalance?: number;
   status?: string;
+  __rowKey?: string;
   [key: string]: any;
 }
 
@@ -602,7 +603,8 @@ function getInventoryAvailableQty(record: InventoryRecord) {
   return Number.isFinite(qty) ? qty : 0;
 }
 
-function getInventoryRowKey(record: InventoryRecord, index: number) {
+function getInventoryRowKey(record: InventoryRecord) {
+  if (record.__rowKey) return String(record.__rowKey);
   if (record.id) return String(record.id);
 
   return [
@@ -612,7 +614,6 @@ function getInventoryRowKey(record: InventoryRecord, index: number) {
     normalizeText(record.plant),
     normalizeText(record.location),
     normalizeText(record.expiryDate || record.expDate),
-    index,
   ].join('|');
 }
 
@@ -621,8 +622,12 @@ function readMergedInventory() {
 
   INVENTORY_KEYS.forEach((key) => {
     readStorageArray<InventoryRecord>(key).forEach((record, index) => {
-      const rowKey = `${key}|${getInventoryRowKey(record, index)}`;
-      map.set(rowKey, record);
+      const baseKey = getInventoryRowKey(record);
+      const rowKey = `${key}|${baseKey || 'ROW'}|${index}`;
+      map.set(rowKey, {
+        ...record,
+        __rowKey: rowKey,
+      });
     });
   });
 
@@ -1514,53 +1519,61 @@ export default function ProductMasterPage() {
   }, [selectedProduct, aiResultsMap]);
 
   const openCreateModal = () => {
-    const defaultUom =
-      uomSelectOptions.find((item) => item.value === 'PCS')?.value || uomSelectOptions[0]?.value || 'PCS';
-
-    const defaultStatus =
-      productStatusOptions.find((item) => item.value === 'Active')?.value ||
-      productStatusOptions[0]?.value ||
-      'Active';
-
     setModalMode('create');
     setSelectedProduct(null);
-
-    form.resetFields();
-    form.setFieldsValue({
-      status: defaultStatus,
-      uom: defaultUom,
-      purchaseUom: defaultUom,
-      salesUom: defaultUom,
-      purchaseToBaseFactor: 1,
-      salesToBaseFactor: 1,
-      category: 'General',
-      itemType: 'Finished Goods',
-      storageType: 'Ambient',
-      isBatchControlled: true,
-      isExpiryControlled: true,
-    } as ProductMaster);
-
     setModalOpen(true);
   };
 
   const openEditModal = (record: ProductMaster) => {
     setModalMode('edit');
     setSelectedProduct(record);
-    form.setFieldsValue(migrateProduct(record));
     setModalOpen(true);
   };
 
   const openViewModal = (record: ProductMaster) => {
     setModalMode('view');
     setSelectedProduct(record);
-    form.setFieldsValue(migrateProduct(record));
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
     setSelectedProduct(null);
-    form.resetFields();
+  };
+
+  const handleProductModalAfterOpenChange = (visible: boolean) => {
+    if (!visible) return;
+
+    if (modalMode === 'create') {
+      const defaultUom =
+        uomSelectOptions.find((item) => item.value === 'PCS')?.value || uomSelectOptions[0]?.value || 'PCS';
+
+      const defaultStatus =
+        productStatusOptions.find((item) => item.value === 'Active')?.value ||
+        productStatusOptions[0]?.value ||
+        'Active';
+
+      form.resetFields();
+      form.setFieldsValue({
+        status: defaultStatus,
+        uom: defaultUom,
+        purchaseUom: defaultUom,
+        salesUom: defaultUom,
+        purchaseToBaseFactor: 1,
+        salesToBaseFactor: 1,
+        category: 'General',
+        itemType: 'Finished Goods',
+        storageType: 'Ambient',
+        isBatchControlled: true,
+        isExpiryControlled: true,
+      });
+      return;
+    }
+
+    if (selectedProduct) {
+      form.resetFields();
+      form.setFieldsValue(migrateProduct(selectedProduct));
+    }
   };
 
   const openAiModal = (record: ProductMaster) => {
@@ -2359,7 +2372,9 @@ export default function ProductMasterPage() {
       fixed: 'left',
       width: 150,
       sorter: (a, b) => String(a.productCode || '').localeCompare(String(b.productCode || '')),
-      render: (value?: string, record) => <Text strong>{value || record.sku}</Text>,
+      render: (value: string | undefined, record: ProductMaster) => (
+  <Text strong>{value || record.sku}</Text>
+),
     },
     {
       title: 'SKU',
@@ -2454,7 +2469,9 @@ export default function ProductMasterPage() {
       dataIndex: 'purchaseUom',
       key: 'purchaseUom',
       width: 130,
-      render: (value?: string, record) => <Tag color="purple">{value || record.uom}</Tag>,
+      render: (value: string | undefined, record: ProductMaster) => (
+  <Tag color="purple">{value || record.uom}</Tag>
+),
     },
     {
       title: 'Purchase Factor',
@@ -2468,7 +2485,9 @@ export default function ProductMasterPage() {
       dataIndex: 'salesUom',
       key: 'salesUom',
       width: 120,
-      render: (value?: string, record) => <Tag color="cyan">{value || record.uom}</Tag>,
+      render: (value: string | undefined, record: ProductMaster) => (
+  <Tag color="cyan">{value || record.uom}</Tag>
+),
     },
     {
       title: 'Sales Factor',
@@ -3076,6 +3095,7 @@ export default function ProductMasterPage() {
         }}
         width={1100}
         destroyOnHidden
+        afterOpenChange={handleProductModalAfterOpenChange}
       >
         <Form
           form={form}
@@ -3400,7 +3420,7 @@ export default function ProductMasterPage() {
               <Divider titlePlacement="left">Linked Inventory Rows</Divider>
 
               <Table
-                rowKey={(record, index) => getInventoryRowKey(record, index || 0)}
+                rowKey={(record) => getInventoryRowKey(record)}
                 columns={inventoryPreviewColumns}
                 dataSource={inventoryRowsForSelectedProduct}
                 size="small"

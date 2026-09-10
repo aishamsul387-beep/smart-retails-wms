@@ -792,7 +792,7 @@ export default function GRNFormModal({
           </Col>
         </Row>
 
-        <Divider orientation="left">GRN Items / Batch Details</Divider>
+        <Divider titlePlacement="start">GRN Items / Batch Details</Divider>
 
         <Form.List name="items">
           {(fields, { add, remove }) => (

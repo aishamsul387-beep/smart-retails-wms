@@ -806,7 +806,7 @@ function setInventoryQty(row: InventoryRow, batchQty: number, availableQty?: num
     availableQuantity: safeAvailableQty,
     'Available Quantity': safeAvailableQty,
 
-    updatedAt: now,
+    updatedAt: row.updatedAt || now,
   };
 }
 
@@ -882,12 +882,10 @@ function normalizeInventoryRecord(row: InventoryRow): InventoryRow {
     cost: unitCost,
 
     createdAt: row.createdAt || now,
-    updatedAt: row.updatedAt || now,
 
     ...setInventoryQty(row, batchQty, availableQty),
   };
 }
-
 function loadInventoryRowsFromStorage(): InventoryRow[] {
   if (typeof window === 'undefined') return [];
 
@@ -1802,16 +1800,16 @@ export default function InventoryTransferPage() {
     }
 
     const updated: InventoryTransfer = {
-      ...record,
-      status,
-      updatedAt: now,
-      ...(status === 'Approved'
-        ? {
-            approvedBy: record.approver || 'System User',
-            approvedAt: now,
-          }
-        : {}),
-    };
+  ...record,
+  status,
+  ...(status === 'Approved'
+    ? {
+        approvedBy: record.approver || 'System User',
+        approvedAt: now,
+      }
+    : {}),
+  updatedAt: now,
+};
 
     persistTransfers(transfers.map((t) => (t.id === record.id ? updated : t)));
     setSelected((prev) => (prev?.id === record.id ? updated : prev));

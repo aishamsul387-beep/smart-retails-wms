@@ -2461,16 +2461,11 @@ export default function DashboardPage() {
           <Card style={{ height: '100%' }}>
             <Flex justify="space-between" align="flex-start">
               <Statistic
-                title="Executive Health"
-                value={analytics.executiveScore}
-                precision={1}
-                suffix="/ 100"
-                valueStyle={{
-                  color: getScoreColor(
-                    analytics.executiveScore,
-                  ),
-                }}
-              />
+  title="Executive Health"
+  value={analytics.executiveScore}
+  precision={1}
+  styles={{ content: { color: '#3f8600', fontSize: 24 } }}
+/>
 
               <Progress
                 type="circle"
@@ -2515,7 +2510,7 @@ export default function DashboardPage() {
               formatter={(value) =>
                 formatCurrency(Number(value))
               }
-              valueStyle={{ color: '#1677ff' }}
+              styles={{ content: { color: '#1677ff' } }}
             />
 
             <Text type="secondary">
@@ -2540,13 +2535,14 @@ export default function DashboardPage() {
               precision={1}
               suffix="%"
               prefix={<FileDoneOutlined />}
-              valueStyle={{
-                color: getScoreColor(
-                  analytics.orderFulfilmentRate,
-                ),
+              styles={{
+                content: {
+                  color: getScoreColor(
+                    analytics.orderFulfilmentRate,
+                  ),
+                }
               }}
             />
-
             <Progress
               percent={Math.round(
                 analytics.orderFulfilmentRate,
@@ -2577,10 +2573,12 @@ export default function DashboardPage() {
               precision={1}
               suffix="%"
               prefix={<TruckOutlined />}
-              valueStyle={{
-                color: getScoreColor(
-                  analytics.outboundCompletionRate,
-                ),
+              styles={{
+                content: {
+                  color: getScoreColor(
+                    analytics.outboundCompletionRate,
+                  ),
+                },
               }}
             />
 
@@ -2686,7 +2684,9 @@ export default function DashboardPage() {
                   formatter={(value) =>
                     formatCurrency(Number(value))
                   }
-                  valueStyle={{ color: '#fa8c16' }}
+                  styles={{ content: { color: '#fa8c16'
+                  }
+                   }}
                 />
               </Col>
 
@@ -2697,7 +2697,9 @@ export default function DashboardPage() {
                   formatter={(value) =>
                     formatCurrency(Number(value))
                   }
-                  valueStyle={{ color: '#ff4d4f' }}
+                  styles={{ content: { color: '#ff4d4f'
+                  }
+                   }}
                 />
               </Col>
             </Row>
@@ -3002,9 +3004,11 @@ export default function DashboardPage() {
                     <Statistic
                       title="Complete"
                       value={achievement.completed}
-                      valueStyle={{
-                        fontSize: 18,
-                        color: '#52c41a',
+                      styles={{
+                        content: {
+                          fontSize: 18,
+                          color: '#52c41a',
+                        },
                       }}
                     />
                   </Col>
@@ -3013,9 +3017,11 @@ export default function DashboardPage() {
                     <Statistic
                       title="Pending"
                       value={achievement.pending}
-                      valueStyle={{
-                        fontSize: 18,
-                        color: '#faad14',
+                      styles={{
+                        content: {
+                          fontSize: 18,
+                          color: '#faad14',
+                        },
                       }}
                     />
                   </Col>
@@ -3024,9 +3030,11 @@ export default function DashboardPage() {
                     <Statistic
                       title="Critical"
                       value={achievement.critical}
-                      valueStyle={{
-                        fontSize: 18,
-                        color: '#ff4d4f',
+                      styles={{
+                        content: {
+                          fontSize: 18,
+                          color: '#ff4d4f',
+                        },
                       }}
                     />
                   </Col>

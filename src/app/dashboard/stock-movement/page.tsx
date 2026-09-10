@@ -3802,24 +3802,27 @@ export default function StockMovementsPage() {
                 gutter={[16, 16]}
                 align="middle"
               >
-                <Col xs={24} md={8}>
-                  <Statistic
-                    title="AI Audit Result"
-                    value={aiReview.status}
-                    prefix={<RobotOutlined />}
-                    valueStyle={{
-                      fontSize: 20,
-                      color:
-                        aiReview.status ===
-                        'Critical'
-                          ? '#cf1322'
-                          : aiReview.status ===
-                              'Healthy'
-                            ? '#389e0d'
-                            : '#fa8c16',
-                    }}
-                  />
-                </Col>
+                ```tsx
+<Col xs={24} md={8}>
+  <Statistic
+    title="AI Audit Result"
+    value={aiReview.status}
+    prefix={<RobotOutlined />}
+    styles={{
+      content: {
+        fontSize: 20,
+        color:
+          aiReview.status === 'Critical'
+            ? '#cf1322'
+            : aiReview.status === 'Healthy'
+              ? '#389e0d'
+              : '#fa8c16',
+      },
+    }}
+  />
+</Col>
+```
+
 
                 <Col xs={24} md={16}>
                   <Text strong>

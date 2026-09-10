@@ -124,6 +124,8 @@ export interface PermissionOverride {
 }
 
 export interface WMSUser {
+  roleName?: string;
+
   id: string;
   userId: string;
   employeeId: string;

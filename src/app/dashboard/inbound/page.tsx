@@ -2222,7 +2222,7 @@ export default function InboundReceivingPage() {
       status: values.status || 'Draft',
       movementPosted:
         editingReceipt?.movementPosted || false,
-      items: (values.items || []).map((item) => ({
+      items: (values.items || []).map((item: NonNullable<typeof editingReceipt>['items'][number]) => ({
         id: item.id || uid('INB-ITEM'),
         productCode: String(
           item.productCode || '',
@@ -3358,8 +3358,8 @@ export default function InboundReceivingPage() {
 
     const existingMovements = readMovements();
 
-    const newMovements = receipt.items.map(
-      (item, index) => ({
+      const newMovements = receipt.items.map(
+  (item: InboundItem, index: number) => ({
         id: uid('MOV'),
         movementNo: `MOV-${Date.now()}-${index + 1}`,
         type: 'Stock Receipt',

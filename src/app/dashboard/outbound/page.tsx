@@ -745,7 +745,7 @@ function normalizeOutboundLine(raw: any): OutboundLine {
       readAny(raw, ['expiryDate', 'Expiry Date', 'expiry', 'Expiry', 'expirationDate', 'Expiration Date'], ''),
     ),
     uom: String(readAny(raw, ['uom', 'UOM', 'unit', 'Unit'], 'PCS')).trim() || 'PCS',
-    qty: asNumber(readAny(raw, ['qty', 'Qty', 'quantity', 'Quantity', 'orderQty', 'Order Qty'], 0), 0),
+    qty: asNumber(readAny(raw, ['qty', 'Qty', 'quantity', 'Quantity', 'orderQty', 'Order Qty'], '0')),
     remarks: String(readAny(raw, ['remarks', 'Remarks', 'remark', 'Remark'], '')).trim(),
   };
 }
@@ -761,7 +761,7 @@ function normalizeShipment(raw: any): OutboundShipment {
         ? raw.details
         : [];
 
-  const lines = rawLines.map(normalizeOutboundLine);
+  const lines = rawLines.map((line: unknown) => normalizeOutboundLine(line));
 
   const rawAllocations = Array.isArray(raw?.allocations) ? raw.allocations : [];
 
@@ -776,7 +776,7 @@ function normalizeShipment(raw: any): OutboundShipment {
     location: String(readAny(allocation, ['location', 'Location', 'storageLocation', 'Storage Location'], '')).trim(),
     expiryDate: normalizeDateForInput(readAny(allocation, ['expiryDate', 'Expiry Date'], '')),
     uom: String(readAny(allocation, ['uom', 'UOM'], '')).trim(),
-    qty: asNumber(readAny(allocation, ['qty', 'Qty', 'allocatedQty', 'Allocated Qty'], 0), 0),
+    qty: asNumber(readAny(allocation, ['qty', 'Qty', 'allocatedQty', 'Allocated Qty'], '0')),
   }));
 
   const statusText = String(readAny(raw, ['status', 'Status'], 'Draft')).trim() as ShipmentStatus;
