@@ -5409,7 +5409,7 @@ export default function InboundReceivingPage() {
             {aiReview.locationProjections.length >
               0 && (
               <>
-                <Divider orientation="left">
+                <Divider orientation={"left" as any}>
                   Location Capacity Projection
                 </Divider>
 
