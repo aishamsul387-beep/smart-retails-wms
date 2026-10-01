@@ -1,7 +1,7 @@
 'use client';
-
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
+import
+ {
   Alert,
   AutoComplete,
   Button,
@@ -40,6 +40,7 @@ import {
   ImportOutlined,
   InboxOutlined,
   PlusOutlined,
+  PrinterOutlined,
   ReloadOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
@@ -112,6 +113,8 @@ interface InboundReceipt {
   createdAt: string;
   updatedAt: string;
   receivedAt?: string;
+  qrGeneratedAt?: string;
+  qrPayloads?: string[];
 
   aiStatus?: AIStatus;
   aiScore?: number;
@@ -1575,6 +1578,12 @@ export default function InboundReceivingPage() {
     useState<AIReview | null>(null);
 
   const [aiReceipt, setAiReceipt] =
+    useState<InboundReceipt | null>(null);
+
+  const [printOpen, setPrintOpen] =
+    useState(false);
+
+  const [qrPrintReceipt, setQrPrintReceipt] =
     useState<InboundReceipt | null>(null);
 
   const isViewMode = modalMode === 'view';
@@ -3184,53 +3193,169 @@ export default function InboundReceivingPage() {
   }
 
   function handleConfirm(receipt: InboundReceipt) {
-    if (receipt.status !== 'Draft') {
-      messageApi.warning(
-        'Only Draft receipt can be confirmed',
-      );
-      return;
-    }
-
-    const review = analyzeInboundReceipt(receipt);
-
-    if (review.status === 'Blocked') {
-      setAiReceipt(receipt);
-      setAiReview(review);
-      setAiModalOpen(true);
-      persistAIReview(receipt, review);
-
-      messageApi.error(
-        'AI blocked confirmation because critical errors were found.',
-      );
-      return;
-    }
-
-    const next = receipts.map((existing) =>
-      existing.id === receipt.id
-        ? {
-            ...existing,
-            status: 'Confirmed' as InboundStatus,
-            aiStatus: review.status,
-            aiScore: review.score,
-            aiIssues: review.issues,
-            aiWarnings: review.warnings,
-            aiRecommendations:
-              review.recommendations,
-            aiReviewedAt: review.reviewedAt,
-            updatedAt: new Date().toISOString(),
-          }
-        : existing,
+  if (receipt.status !== 'Draft') {
+    messageApi.warning('Only Draft receipt can be confirmed');
+    return;
+  }
+  const review = analyzeInboundReceipt(receipt);
+  if (review.status === 'Blocked') {
+    setAiReceipt(receipt);
+    setAiReview(review);
+    setAiModalOpen(true);
+    persistAIReview(receipt, review);
+    messageApi.error(
+      'AI blocked confirmation because critical errors were found.',
     );
+    return;
+  }
 
-    saveReceipts(next);
-    messageApi.success('Inbound receipt confirmed');
+  const now = new Date().toISOString();
+
+  const next = receipts.map((existing) =>
+    existing.id === receipt.id
+      ? {
+          ...existing,
+          status: 'Confirmed' as InboundStatus,
+          qrGeneratedAt: now,
+          qrPayloads: receipt.items.map((item) => getQrPayload(item)),
+          aiStatus: review.status,
+          aiScore: review.score,
+          aiIssues: review.issues,
+          aiWarnings: review.warnings,
+          aiRecommendations: review.recommendations,
+          aiReviewedAt: review.reviewedAt,
+          updatedAt: now,
+        }
+      : existing,
+  );
+  saveReceipts(next);
+  messageApi.success(
+    'Inbound receipt confirmed. QR labels are now ready to print.',
+  );
+}
+
+  function handlePrintQRLabel(receipt: InboundReceipt) {
+  if (receipt.status !== 'Confirmed' && receipt.status !== 'Received') {
+    messageApi.warning(
+      'QR labels can only be printed after the inbound GRN is Confirmed.',
+    );
+    return;
+  }
+  setQrPrintReceipt(receipt);
+  setPrintOpen(true);
+}
+
+  function getQrPayload(
+    item: InboundItem,
+  ) {
+    return JSON.stringify({
+      sku: item.sku || item.productCode,
+      batchNo: item.batchNo,
+      expiryDate: item.expiryDate,
+    });
+  }
+
+  function getQrImageUrl(payload: string) {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(payload)}`;
+  }
+
+  function escapeHtml(value: unknown) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function printQRLabels(receipt: InboundReceipt) {
+  if (receipt.status !== 'Confirmed' && receipt.status !== 'Received') {
+    messageApi.warning(
+      'QR labels can only be printed for Confirmed or Received inbound GRNs.',
+    );
+    return;
+  }
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+
+    if (!printWindow) {
+      messageApi.error(
+        'Unable to open the print window. Please allow pop-ups for this site.',
+      );
+      return;
+    }
+
+    const labels = receipt.items
+      .map((item, index) => {
+        const sku = item.sku || item.productCode;
+        const payload =
+          receipt.qrPayloads?.[index] ||
+          getQrPayload(item);
+        const qrUrl = getQrImageUrl(payload);
+
+        return `
+          <section class="label">
+            <div class="qr">
+              <img src="${qrUrl}" alt="QR Code" />
+            </div>
+            <div class="details">
+              <div class="title">INBOUND STOCK LABEL</div>
+              <div class="row"><span>GRN</span><strong>${escapeHtml(receipt.receiptNo)}</strong></div>
+              <div class="row"><span>SKU</span><strong>${escapeHtml(sku)}</strong></div>
+              <div class="row"><span>BATCH</span><strong>${escapeHtml(item.batchNo)}</strong></div>
+              <div class="row"><span>EXPIRY</span><strong>${escapeHtml(item.expiryDate)}</strong></div>
+              <div class="row"><span>QTY</span><strong>${escapeHtml(item.qty)} ${escapeHtml(item.uom)}</strong></div>
+              <div class="row"><span>PLANT</span><strong>${escapeHtml(item.plant)}</strong></div>
+              <div class="row"><span>LOCATION</span><strong>${escapeHtml(item.location)}</strong></div>
+              <div class="item">Item ${index + 1} of ${receipt.items.length}</div>
+            </div>
+          </section>
+        `;
+      })
+      .join('');
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>QR Labels - ${escapeHtml(receipt.receiptNo)}</title>
+          <style>
+            @page { size: 100mm 70mm; margin: 0; }
+            * { box-sizing: border-box; }
+            body { margin: 0; font-family: Arial, sans-serif; }
+            .label { width: 100mm; min-height: 70mm; padding: 5mm; display: flex; gap: 5mm; page-break-after: always; align-items: center; }
+            .label:last-child { page-break-after: auto; }
+            .qr { width: 38mm; flex: 0 0 38mm; text-align: center; }
+            .qr img { width: 38mm; height: 38mm; object-fit: contain; }
+            .details { flex: 1; min-width: 0; }
+            .title { font-size: 12pt; font-weight: 700; margin-bottom: 3mm; border-bottom: 1px solid #000; padding-bottom: 2mm; }
+            .row { display: flex; justify-content: space-between; gap: 3mm; font-size: 9pt; line-height: 1.45; }
+            .row span { color: #555; }
+            .row strong { text-align: right; word-break: break-word; }
+            .item { margin-top: 2mm; font-size: 7pt; color: #666; }
+          </style>
+        </head>
+        <body>${labels}
+          <script>
+            const images = Array.from(document.images);
+            Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })))
+              .then(() => setTimeout(() => { window.print(); }, 300));
+          <\/script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
   }
 
   function handleCancel(receipt: InboundReceipt) {
     if (receipt.status === 'Received') {
-      messageApi.warning(
-        'Received receipt cannot be cancelled',
-      );
+      messageApi.warning('Received receipt cannot be cancelled');
+      return;
+    }
+
+    if (receipt.status === 'Cancelled') {
+      messageApi.info('Inbound receipt is already cancelled');
       return;
     }
 
@@ -3475,7 +3600,7 @@ export default function InboundReceivingPage() {
                 ? 'success'
                 : 'warning'
             }
-            title={`AI readiness: ${review.status} (${review.score}/100)`}
+            message={`AI readiness: ${review.status} (${review.score}/100)`}
             description={
               review.warnings.length
                 ? `${review.warnings.length} warning(s) require operational review.`
@@ -3499,6 +3624,10 @@ export default function InboundReceivingPage() {
                   'Received' as InboundStatus,
                 movementPosted: true,
                 receivedAt: now,
+                qrGeneratedAt: now,
+                qrPayloads: receipt.items.map((item) =>
+                  getQrPayload(item),
+                ),
                 updatedAt: now,
                 aiStatus: review.status,
                 aiScore: review.score,
@@ -4002,6 +4131,14 @@ export default function InboundReceivingPage() {
               onClick={() => handleConfirm(record)}
             />
           </Tooltip>
+                      <Tooltip title="Print QR Label">
+  <Button
+    size="small"
+    icon={<PrinterOutlined />}
+    disabled={record.status !== 'Confirmed' && record.status !== 'Received'}
+    onClick={() => handlePrintQRLabel(record)}
+  />
+</Tooltip>
 
           <Tooltip title="Receive / Post Inventory">
             <Button
@@ -4655,7 +4792,7 @@ export default function InboundReceivingPage() {
             </Col>
           </Row>
 
-          <Divider titlePlacement="left">
+          <Divider orientation="left">
             Inbound Items
           </Divider>
 
@@ -5272,7 +5409,7 @@ export default function InboundReceivingPage() {
             {aiReview.locationProjections.length >
               0 && (
               <>
-                <Divider titlePlacement="left">
+                <Divider direction="left">
                   Location Capacity Projection
                 </Divider>
 
@@ -5447,6 +5584,95 @@ export default function InboundReceivingPage() {
           </Space>
         ) : (
           <Empty description="No AI review result" />
+        )}
+      </Modal>
+
+      <Modal
+        open={printOpen}
+        onCancel={() => setPrintOpen(false)}
+        title={
+          <Space>
+            <PrinterOutlined />
+            QR Label Printing
+          </Space>
+        }
+        width={900}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => setPrintOpen(false)}
+          >
+            Close
+          </Button>,
+          <Button
+  key="print"
+  type="primary"
+  icon={<PrinterOutlined />}
+  disabled={
+    !qrPrintReceipt ||
+    (qrPrintReceipt.status !== 'Confirmed' &&
+      qrPrintReceipt.status !== 'Received')
+  }
+  onClick={() => {
+    if (qrPrintReceipt) {
+      printQRLabels(qrPrintReceipt);
+    }
+  }}
+>
+  Print QR Labels
+</Button>,
+        ]}
+      >
+        {qrPrintReceipt ? (
+          <Space
+            aria-orientation="vertical"
+            size="middle"
+            style={{ width: '100%' }}
+          >
+            <Alert
+              type="success"
+              showIcon
+              title="QR labels are available"
+              description="Each label contains Product SKU, Batch No and Expiry Date. The QR code is generated from these three values."
+            />
+
+            <Table
+              size="small"
+              pagination={false}
+              rowKey="id"
+              dataSource={qrPrintReceipt.items}
+              columns={[
+                {
+                  title: 'SKU',
+                  key: 'sku',
+                  render: (_, item) => item.sku || item.productCode,
+                },
+                {
+                  title: 'Batch No',
+                  dataIndex: 'batchNo',
+                  key: 'batchNo',
+                },
+                {
+                  title: 'Expiry Date',
+                  dataIndex: 'expiryDate',
+                  key: 'expiryDate',
+                },
+                {
+                  title: 'Qty',
+                  key: 'qty',
+                  align: 'right',
+                  render: (_, item) => `${item.qty} ${item.uom}`,
+                },
+                {
+                  title: 'Plant / Location',
+                  key: 'location',
+                  render: (_, item) => `${item.plant || '-'} / ${item.location || '-'}`,
+                },
+              ]}
+            />
+          </Space>
+        ) : (
+          <Empty description="No QR label data selected" />
         )}
       </Modal>
     </div>

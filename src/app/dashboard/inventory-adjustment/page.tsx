@@ -2767,9 +2767,11 @@ export default function InventoryAdjustmentPage() {
                     title="AI Status"
                     value={aiReview.status}
                     prefix={<RobotOutlined />}
-                    valueStyle={{
-                      color: aiReview.status === 'Blocked' ? '#cf1322' : aiReview.status === 'Ready' ? '#3f8600' : '#faad14',
-                      fontSize: 18,
+                    styles={{
+                      content: {
+                        color: aiReview.status === 'Blocked' ? '#cf1322' : aiReview.status === 'Ready' ? '#3f8600' : '#faad14',
+                        fontSize: 18,
+                      },
                     }}
                   />
                 </Col>

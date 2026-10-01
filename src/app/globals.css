@@ -96,3 +96,21 @@ body {
   background: var(--wms-sidebar-blue) !important;
   color: #ffffff !important;
 }
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .grn-print-area,
+  .grn-print-area * {
+    visibility: visible;
+  }
+  .grn-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
