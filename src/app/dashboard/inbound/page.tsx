@@ -4792,7 +4792,7 @@ export default function InboundReceivingPage() {
             </Col>
           </Row>
 
-          <Divider orientation="left">
+          <Divider orientation={"left" as any}>
             Inbound Items
           </Divider>
 
@@ -5409,7 +5409,7 @@ export default function InboundReceivingPage() {
             {aiReview.locationProjections.length >
               0 && (
               <>
-                <Divider direction="left">
+                <Divider orientation="left">
                   Location Capacity Projection
                 </Divider>
 
