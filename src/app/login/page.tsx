@@ -7,7 +7,6 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
-
 import {
   Alert,
   Button,
@@ -19,16 +18,13 @@ import {
   Spin,
   Typography,
 } from 'antd';
-
 import {
   LockOutlined,
   LoginOutlined,
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-
 import { useRouter, useSearchParams } from 'next/navigation';
-
 import { useAuth } from '@/contexts/AuthContext';
 
 const { Paragraph, Text, Title } = Typography;
@@ -53,7 +49,6 @@ interface LoginAuthContext {
   isLoading?: boolean;
   initialized?: boolean;
   isAuthenticated?: boolean;
-
   login: (
     userId: string,
     password: string,
@@ -78,7 +73,6 @@ function getSafeReturnUrl(requestedReturnUrl: string | null): string {
   ) {
     return '/dashboard';
   }
-
   return requestedReturnUrl;
 }
 
@@ -93,21 +87,18 @@ function normalizeLoginResult(
       success: true,
     };
   }
-
   if (result === false) {
     return {
       success: false,
       message: 'Invalid User ID or password.',
     };
   }
-
   if (result && typeof result === 'object') {
     return {
       ...result,
       success: result.success !== false,
     };
   }
-
   /*
    * Some AuthContext implementations return void after updating
    * the authenticated user state. If no exception was thrown,
@@ -121,7 +112,6 @@ function normalizeLoginResult(
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [form] = Form.useForm<LoginFormValues>();
 
   /*
@@ -133,20 +123,14 @@ function LoginPageContent() {
    * - initialized / isAuthenticated
    */
   const auth = useAuth() as unknown as LoginAuthContext;
-
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [informationMessage, setInformationMessage] = useState('');
 
   const currentUser = auth.currentUser ?? auth.user ?? null;
-
   const authLoading =
-    auth.loading ??
-    auth.isLoading ??
-    auth.initialized === false;
-
-  const isAuthenticated =
-    auth.isAuthenticated ?? Boolean(currentUser);
+    auth.loading ?? auth.isLoading ?? auth.initialized === false;
+  const isAuthenticated = auth.isAuthenticated ?? Boolean(currentUser);
 
   const returnUrl = useMemo(
     () => getSafeReturnUrl(searchParams.get('returnUrl')),
@@ -165,22 +149,17 @@ function LoginPageContent() {
   /**
    * Processes the Ant Design form values.
    */
-  const handleLogin = async (
-    values: LoginFormValues,
-  ): Promise<void> => {
+  const handleLogin = async (values: LoginFormValues): Promise<void> => {
     if (submitting) {
       return;
     }
-
     setSubmitting(true);
     setErrorMessage('');
     setInformationMessage('');
 
     try {
       if (typeof auth.login !== 'function') {
-        throw new Error(
-          'Authentication service is not available.',
-        );
+        throw new Error('Authentication service is not available.');
       }
 
       const userId = values.userId?.trim();
@@ -188,18 +167,11 @@ function LoginPageContent() {
       const rememberMe = Boolean(values.rememberMe);
 
       if (!userId || !password) {
-        setErrorMessage(
-          'User ID and password are required.',
-        );
+        setErrorMessage('User ID and password are required.');
         return;
       }
 
-      const rawResult = await auth.login(
-        userId,
-        password,
-        rememberMe,
-      );
-
+      const rawResult = await auth.login(userId, password, rememberMe);
       const result = normalizeLoginResult(rawResult);
 
       if (!result.success) {
@@ -215,13 +187,9 @@ function LoginPageContent() {
         setInformationMessage(
           'Login successful. You must change your password.',
         );
-
         router.replace(
-          `/change-password?returnUrl=${encodeURIComponent(
-            returnUrl,
-          )}`,
+          `/change-password?returnUrl=${encodeURIComponent(returnUrl)}`,
         );
-
         return;
       }
 
@@ -232,7 +200,6 @@ function LoginPageContent() {
         error instanceof Error
           ? error.message
           : 'An unexpected login error occurred.';
-
       setErrorMessage(message);
     } finally {
       setSubmitting(false);
@@ -249,7 +216,7 @@ function LoginPageContent() {
       <main style={styles.loadingContainer}>
         <Spin
           size="large"
-          description={
+          tip={
             isAuthenticated
               ? 'Opening dashboard...'
               : 'Loading authentication...'
@@ -262,10 +229,9 @@ function LoginPageContent() {
   }
 
   return (
-    <main style={styles.page}>
+    <main style={styles.page} className="wms-login-page">
       <div style={styles.backgroundShapeOne} />
       <div style={styles.backgroundShapeTwo} />
-
       <section style={styles.container}>
         <Card
           variant="borderless"
@@ -276,10 +242,10 @@ function LoginPageContent() {
             },
           }}
         >
-          <div style={styles.grid}>
-            <aside style={styles.brandPanel}>
+          <div style={styles.grid} className="wms-login-grid">
+            <aside style={styles.brandPanel} className="wms-brand-panel">
               <Space
-                orientation="vertical"
+                direction="vertical"
                 size={20}
                 style={{
                   width: '100%',
@@ -288,31 +254,27 @@ function LoginPageContent() {
                 <div style={styles.logo}>
                   <SafetyCertificateOutlined />
                 </div>
-
                 <div>
                   <Title level={1} style={styles.brandTitle}>
                     WMS Portal
                   </Title>
-
                   <Paragraph style={styles.brandDescription}>
-                    Secure warehouse management, inventory
-                    visibility, transaction controls, and
-                    AI-assisted operational review.
+                    Secure warehouse management, inventory visibility,
+                    transaction controls, and AI-assisted operational
+                    review.
                   </Paragraph>
                 </div>
-
                 <div style={styles.securityBox}>
                   <SafetyCertificateOutlined />
-
                   <Text style={styles.securityText}>
-                    Access is controlled by role, plant,
-                    location, and assigned permissions.
+                    Access is controlled by role, plant, location, and
+                    assigned permissions.
                   </Text>
                 </div>
               </Space>
             </aside>
 
-            <section style={styles.formPanel}>
+            <section style={styles.formPanel} className="wms-form-panel">
               <div style={styles.formHeader}>
                 <Title
                   level={2}
@@ -322,7 +284,6 @@ function LoginPageContent() {
                 >
                   Sign in
                 </Title>
-
                 <Text type="secondary">
                   Enter your assigned User ID and password.
                 </Text>
@@ -333,7 +294,7 @@ function LoginPageContent() {
                   showIcon
                   closable
                   type="error"
-                  title="Login failed"
+                  message="Login failed"
                   description={errorMessage}
                   style={styles.alert}
                   onClose={() => setErrorMessage('')}
@@ -344,7 +305,7 @@ function LoginPageContent() {
                 <Alert
                   showIcon
                   type="info"
-                  title="Authentication information"
+                  message="Authentication information"
                   description={informationMessage}
                   style={styles.alert}
                 />
@@ -364,9 +325,7 @@ function LoginPageContent() {
                   label="User ID"
                   name="userId"
                   normalize={(value: unknown) =>
-                    typeof value === 'string'
-                      ? value.trimStart()
-                      : value
+                    typeof value === 'string' ? value.trimStart() : value
                   }
                   rules={[
                     {
@@ -376,8 +335,7 @@ function LoginPageContent() {
                     },
                     {
                       max: 100,
-                      message:
-                        'User ID cannot exceed 100 characters.',
+                      message: 'User ID cannot exceed 100 characters.',
                     },
                   ]}
                 >
@@ -445,33 +403,69 @@ function LoginPageContent() {
                 showIcon
                 type="warning"
                 style={styles.demoAlert}
-                title="Development account"
+                message="Development account"
                 description={
-                  <Space orientation="vertical" size={2}>
+                  <Space direction="vertical" size={2}>
                     <Text>
                       User ID: <Text code>admin</Text>
                     </Text>
-
                     <Text>
                       Password: <Text code>Admin@123</Text>
                     </Text>
-
                     <Text type="secondary">
-                      Replace this local authentication method
-                      before production deployment.
+                      Replace this local authentication method before
+                      production deployment.
                     </Text>
                   </Space>
                 }
               />
 
               <Paragraph style={styles.footerText}>
-                Login attempts and security activity are
-                recorded in the WMS security audit log.
+                Login attempts and security activity are recorded in the
+                WMS security audit log.
               </Paragraph>
             </section>
           </div>
         </Card>
       </section>
+
+      <style jsx global>{`
+        .wms-login-page {
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+
+        .wms-login-grid {
+          display: grid;
+          grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
+          min-height: 600px;
+        }
+
+        @media (max-width: 768px) {
+          .wms-login-grid {
+            grid-template-columns: 1fr !important;
+            min-height: auto !important;
+          }
+
+          .wms-brand-panel {
+            padding: 32px 24px !important;
+          }
+
+          .wms-form-panel {
+            padding: 32px 24px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .wms-brand-panel {
+            padding: 24px 20px !important;
+          }
+
+          .wms-form-panel {
+            padding: 24px 20px !important;
+          }
+        }
+      `}</style>
     </main>
   );
 }
@@ -481,10 +475,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main style={styles.loadingContainer}>
-          <Spin
-            size="large"
-            description="Loading login page..."
-          >
+          <Spin size="large" tip="Loading login page...">
             <div style={styles.loadingContent} />
           </Spin>
         </main>
@@ -503,7 +494,6 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     justifyContent: 'center',
     minHeight: '100vh',
-    overflow: 'hidden',
     padding: 24,
     position: 'relative',
   },
@@ -523,14 +513,12 @@ const styles: Record<string, CSSProperties> = {
 
   grid: {
     display: 'grid',
-    gridTemplateColumns:
-      'minmax(280px, 0.9fr) minmax(340px, 1.1fr)',
+    gridTemplateColumns: 'minmax(280px, 0.9fr) minmax(340px, 1.1fr)',
     minHeight: 600,
   },
 
   brandPanel: {
-    background:
-      'linear-gradient(145deg, #001529 0%, #003a8c 100%)',
+    background: 'linear-gradient(145deg, #001529 0%, #003a8c 100%)',
     color: '#ffffff',
     display: 'flex',
     padding: '64px 48px',
