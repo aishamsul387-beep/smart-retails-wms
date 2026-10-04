@@ -12,7 +12,7 @@ import {
 } from './permissions';
 
 /* -------------------------------------------------------------------------- */
-/* Storage keys                                                               */
+/* Storage keys */
 /* -------------------------------------------------------------------------- */
 
 export const WMS_LOGIN_SESSION_STORAGE_KEY = 'wms_login_sessions';
@@ -22,7 +22,7 @@ const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const MAX_SECURITY_AUDIT_LOGS = 5000;
 
 /* -------------------------------------------------------------------------- */
-/* Types                                                                      */
+/* Types */
 /* -------------------------------------------------------------------------- */
 
 export type LoginSessionStatus = 'Active' | 'Logged Out' | 'Expired';
@@ -188,14 +188,27 @@ export interface UpdateUserInput {
 }
 
 /* -------------------------------------------------------------------------- */
-/* General helpers                                                            */
+/* General helpers */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Safely checks whether the browser environment and localStorage
+ * are actually usable. Returns false instead of throwing when storage
+ * access is blocked (private mode, in-app browsers, strict privacy
+ * settings, etc).
+ */
 function isBrowser(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.localStorage !== 'undefined'
-  );
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    const testKey = '__wms_storage_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function createId(prefix: string): string {
@@ -204,7 +217,6 @@ function createId(prefix: string): string {
     typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-
   return `${prefix}-${randomValue}`;
 }
 
@@ -216,11 +228,9 @@ function isActiveValue(value: unknown): boolean {
   if (typeof value === 'boolean') {
     return value;
   }
-
   if (value === null || value === undefined || value === '') {
     return true;
   }
-
   return ['active', 'enabled', 'true', '1', 'yes'].includes(
     normalizeText(String(value)),
   );
@@ -230,7 +240,6 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   if (!value) {
     return fallback;
   }
-
   try {
     const parsed = JSON.parse(value) as T;
     return parsed ?? fallback;
@@ -243,29 +252,38 @@ function readStorageArray<T>(key: string): T[] {
   if (!isBrowser()) {
     return [];
   }
-
-  const result = safeJsonParse<unknown>(
-    window.localStorage.getItem(key),
-    [],
-  );
-
-  return Array.isArray(result) ? (result as T[]) : [];
+  try {
+    const result = safeJsonParse<unknown>(
+      window.localStorage.getItem(key),
+      [],
+    );
+    return Array.isArray(result) ? (result as T[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function writeStorageArray<T>(key: string, values: T[]): void {
   if (!isBrowser()) {
     return;
   }
-
-  window.localStorage.setItem(key, JSON.stringify(values));
+  try {
+    window.localStorage.setItem(key, JSON.stringify(values));
+  } catch {
+    // Storage write blocked (private mode / quota / security policy).
+    // Fail silently so the app does not crash.
+  }
 }
 
 function notifyUsersUpdated(): void {
   if (!isBrowser()) {
     return;
   }
-
-  window.dispatchEvent(new Event('wms:users-updated'));
+  try {
+    window.dispatchEvent(new Event('wms:users-updated'));
+  } catch {
+    // Ignore if dispatch fails for any reason.
+  }
 }
 
 function getActor(
@@ -280,9 +298,7 @@ function getActor(
       userName: performedBy,
     };
   }
-
   const actor = performedBy || getCurrentUser();
-
   return {
     userId: actor?.userId || 'SYSTEM',
     userName:
@@ -297,7 +313,6 @@ function validateEmail(email?: string): boolean {
   if (!email) {
     return true;
   }
-
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
@@ -315,12 +330,11 @@ export function sanitizeUser(
     passwordHash: _passwordHash,
     ...safeUser
   } = user as StoredWMSUser;
-
   return safeUser as WMSUser;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Password helpers                                                           */
+/* Password helpers */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -333,35 +347,29 @@ export async function hashPassword(password: string): Promise<string> {
   if (!password) {
     return '';
   }
-
   if (
     typeof crypto !== 'undefined' &&
     crypto.subtle &&
     typeof TextEncoder !== 'undefined'
   ) {
     const encodedPassword = new TextEncoder().encode(password);
-
     const digest = await crypto.subtle.digest(
       'SHA-256',
       encodedPassword,
     );
-
     return Array.from(new Uint8Array(digest))
       .map((byte) => byte.toString(16).padStart(2, '0'))
       .join('');
   }
-
   /**
    * Development fallback only.
    * This is not cryptographically secure.
    */
   let hash = 0;
-
   for (let index = 0; index < password.length; index += 1) {
     hash = (hash << 5) - hash + password.charCodeAt(index);
     hash |= 0;
   }
-
   return `fallback-${Math.abs(hash).toString(16)}`;
 }
 
@@ -372,7 +380,6 @@ export async function verifyPassword(
   if (!password || !storedHash) {
     return false;
   }
-
   return (await hashPassword(password)) === storedHash;
 }
 
@@ -380,28 +387,23 @@ function validateNewPassword(password: string): string | null {
   if (password.length < 8) {
     return 'Password must contain at least 8 characters.';
   }
-
   if (!/[A-Z]/.test(password)) {
     return 'Password must contain at least one uppercase letter.';
   }
-
   if (!/[a-z]/.test(password)) {
     return 'Password must contain at least one lowercase letter.';
   }
-
   if (!/[0-9]/.test(password)) {
     return 'Password must contain at least one number.';
   }
-
   if (!/[^A-Za-z0-9]/.test(password)) {
     return 'Password must contain at least one special character.';
   }
-
   return null;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Role storage                                                               */
+/* Role storage */
 /* -------------------------------------------------------------------------- */
 
 export function getRoles(): WMSRole[] {
@@ -418,9 +420,7 @@ export function getRoleById(
   if (!roleId) {
     return undefined;
   }
-
   const target = normalizeText(roleId);
-
   return getRoles().find(
     (role) =>
       normalizeText(role.id) === target ||
@@ -454,7 +454,6 @@ function cloneRole(role: WMSRole): WMSRole {
  */
 function initializeRoles(): WMSRole[] {
   const existingRoles = getRoles();
-
   if (existingRoles.length === 0) {
     const defaultRoles = DEFAULT_WMS_ROLES.map(cloneRole);
     saveRoles(defaultRoles);
@@ -462,14 +461,12 @@ function initializeRoles(): WMSRole[] {
   }
 
   const mergedRoles = [...existingRoles];
-
   DEFAULT_WMS_ROLES.forEach((defaultRole) => {
     const exists = mergedRoles.some(
       (role) =>
         normalizeText(role.id) === normalizeText(defaultRole.id) ||
         normalizeText(role.code) === normalizeText(defaultRole.code),
     );
-
     if (!exists) {
       mergedRoles.push(cloneRole(defaultRole));
     }
@@ -480,7 +477,7 @@ function initializeRoles(): WMSRole[] {
 }
 
 /* -------------------------------------------------------------------------- */
-/* User storage                                                               */
+/* User storage */
 /* -------------------------------------------------------------------------- */
 
 export function getStoredUsers(): StoredWMSUser[] {
@@ -502,9 +499,7 @@ export function getStoredUserById(
   if (!userId) {
     return undefined;
   }
-
   const target = normalizeText(userId);
-
   return getStoredUsers().find(
     (user) =>
       normalizeText(user.id) === target ||
@@ -527,11 +522,9 @@ export function isLoginIdAvailable(
 ): boolean {
   const target = normalizeText(loginId);
   const excluded = normalizeText(excludedUserId);
-
   if (!target) {
     return false;
   }
-
   return !getStoredUsers().some((user) => {
     if (
       excluded &&
@@ -540,7 +533,6 @@ export function isLoginIdAvailable(
     ) {
       return false;
     }
-
     return (
       normalizeText(user.userId) === target ||
       normalizeText(user.employeeId) === target ||
@@ -551,13 +543,11 @@ export function isLoginIdAvailable(
 
 export function saveUser(user: StoredWMSUser): StoredWMSUser {
   const users = getStoredUsers();
-
   const existingIndex = users.findIndex(
     (item) =>
       normalizeText(item.id) === normalizeText(user.id) ||
       normalizeText(item.userId) === normalizeText(user.userId),
   );
-
   const existingUser =
     existingIndex >= 0 ? users[existingIndex] : undefined;
 
@@ -579,7 +569,7 @@ export function saveUser(user: StoredWMSUser): StoredWMSUser {
 }
 
 /* -------------------------------------------------------------------------- */
-/* User CRUD                                                                  */
+/* User CRUD */
 /* -------------------------------------------------------------------------- */
 
 export async function createUser(
@@ -599,21 +589,18 @@ export async function createUser(
       message: 'User ID is required.',
     };
   }
-
   if (!fullName) {
     return {
       success: false,
       message: 'Full name is required.',
     };
   }
-
   if (!input.roleId) {
     return {
       success: false,
       message: 'A role must be assigned.',
     };
   }
-
   if (!validateEmail(email)) {
     return {
       success: false,
@@ -622,7 +609,6 @@ export async function createUser(
   }
 
   const passwordError = validateNewPassword(input.password);
-
   if (passwordError) {
     return {
       success: false,
@@ -636,14 +622,12 @@ export async function createUser(
       message: 'The User ID is already in use.',
     };
   }
-
   if (employeeId && !isLoginIdAvailable(employeeId)) {
     return {
       success: false,
       message: 'The employee ID is already in use.',
     };
   }
-
   if (email && !isLoginIdAvailable(email)) {
     return {
       success: false,
@@ -652,14 +636,12 @@ export async function createUser(
   }
 
   const role = getRoleById(input.roleId);
-
   if (!role) {
     return {
       success: false,
       message: 'The selected role could not be found.',
     };
   }
-
   if (!isActiveValue(role.isActive)) {
     return {
       success: false,
@@ -734,7 +716,6 @@ export function updateUser(
   performedBy?: WMSUser | string | null,
 ): OperationResult {
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -761,21 +742,18 @@ export function updateUser(
       message: 'User ID is required.',
     };
   }
-
   if (!validateEmail(nextEmail)) {
     return {
       success: false,
       message: 'Please enter a valid email address.',
     };
   }
-
   if (!isLoginIdAvailable(nextUserId, existingUser.id)) {
     return {
       success: false,
       message: 'The User ID is already in use.',
     };
   }
-
   if (
     nextEmail &&
     !isLoginIdAvailable(nextEmail, existingUser.id)
@@ -792,14 +770,12 @@ export function updateUser(
 
   if (input.roleId) {
     const role = getRoleById(input.roleId);
-
     if (!role) {
       return {
         success: false,
         message: 'The selected role could not be found.',
       };
     }
-
     roleId = roleIdentifier(role);
     roleCode = role.code;
     roleName = role.name;
@@ -846,7 +822,6 @@ export function updateUser(
   saveStoredUsers(users);
 
   const currentUser = getCurrentUser();
-
   if (
     currentUser &&
     normalizeText(currentUser.id) === normalizeText(updatedUser.id)
@@ -878,7 +853,6 @@ export function deleteUser(
   performedBy?: WMSUser | string | null,
 ): OperationResult {
   const users = getStoredUsers();
-
   const targetUser = users.find(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -927,7 +901,6 @@ export function deleteUser(
   );
 
   const now = getNow();
-
   saveLoginSessions(
     getLoginSessions().map((session) =>
       session.status === 'Active' &&
@@ -962,46 +935,47 @@ export function deleteUser(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Current user                                                               */
+/* Current user */
 /* -------------------------------------------------------------------------- */
 
 export function getCurrentUser(): WMSUser | null {
   if (!isBrowser()) {
     return null;
   }
-
-  const storedValue = window.localStorage.getItem(
-    WMS_CURRENT_USER_STORAGE_KEY,
-  );
-
-  const parsedUser = safeJsonParse<WMSUser | null>(
-    storedValue,
-    null,
-  );
-
-  if (!parsedUser) {
+  try {
+    const storedValue = window.localStorage.getItem(
+      WMS_CURRENT_USER_STORAGE_KEY,
+    );
+    const parsedUser = safeJsonParse<WMSUser | null>(
+      storedValue,
+      null,
+    );
+    if (!parsedUser) {
+      return null;
+    }
+    const latestUser = getStoredUserById(
+      parsedUser.id || parsedUser.userId,
+    );
+    return latestUser ? sanitizeUser(latestUser) : parsedUser;
+  } catch {
     return null;
   }
-
-  const latestUser = getStoredUserById(
-    parsedUser.id || parsedUser.userId,
-  );
-
-  return latestUser ? sanitizeUser(latestUser) : parsedUser;
 }
 
 export function setCurrentUser(
   user: StoredWMSUser | WMSUser,
 ): WMSUser {
   const safeUser = sanitizeUser(user);
-
   if (isBrowser()) {
-    window.localStorage.setItem(
-      WMS_CURRENT_USER_STORAGE_KEY,
-      JSON.stringify(safeUser),
-    );
+    try {
+      window.localStorage.setItem(
+        WMS_CURRENT_USER_STORAGE_KEY,
+        JSON.stringify(safeUser),
+      );
+    } catch {
+      // Ignore storage write failure (private mode / blocked storage).
+    }
   }
-
   return safeUser;
 }
 
@@ -1009,22 +983,23 @@ export function clearCurrentUser(): void {
   if (!isBrowser()) {
     return;
   }
-
-  window.localStorage.removeItem(WMS_CURRENT_USER_STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(WMS_CURRENT_USER_STORAGE_KEY);
+  } catch {
+    // Ignore storage removal failure.
+  }
 }
 
 export function getCurrentRole(): WMSRole | null {
   const user = getCurrentUser();
-
   if (!user) {
     return null;
   }
-
   return findUserRole(user, getRoles()) || null;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Login sessions                                                             */
+/* Login sessions */
 /* -------------------------------------------------------------------------- */
 
 export function getLoginSessions(): LoginSession[] {
@@ -1042,11 +1017,9 @@ export function getActiveLoginSession(
 ): LoginSession | null {
   const currentUser = getCurrentUser();
   const targetUserId = userId || currentUser?.userId;
-
   if (!targetUserId) {
     return null;
   }
-
   return (
     getLoginSessions().find(
       (session) =>
@@ -1077,7 +1050,6 @@ export function createLoginSession(
         lastActivityAt: now,
       };
     }
-
     return session;
   });
 
@@ -1099,13 +1071,11 @@ export function createLoginSession(
 
   updatedSessions.unshift(newSession);
   saveLoginSessions(updatedSessions);
-
   return newSession;
 }
 
 export function updateSessionActivity(sessionId?: string): void {
   const sessions = getLoginSessions();
-
   const activeSession = sessionId
     ? sessions.find(
         (session) =>
@@ -1135,7 +1105,6 @@ function closeLoginSession(
   status: LoginSessionStatus,
 ): LoginSession | null {
   const sessions = getLoginSessions();
-
   const targetSession = sessionId
     ? sessions.find((session) => session.id === sessionId)
     : getActiveLoginSession();
@@ -1145,7 +1114,6 @@ function closeLoginSession(
   }
 
   const now = getNow();
-
   const closedSession: LoginSession = {
     ...targetSession,
     status,
@@ -1163,7 +1131,7 @@ function closeLoginSession(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Security audit                                                             */
+/* Security audit */
 /* -------------------------------------------------------------------------- */
 
 export function getSecurityAuditLogs(): SecurityAuditLog[] {
@@ -1182,7 +1150,6 @@ export function addSecurityAuditLog(
   input: CreateAuditLogInput,
 ): SecurityAuditLog {
   const currentUser = getCurrentUser();
-
   const activeSession = getActiveLoginSession(
     input.userId || currentUser?.userId,
   );
@@ -1215,14 +1182,13 @@ export function addSecurityAuditLog(
 
   const logs = getSecurityAuditLogs();
   logs.unshift(log);
-
   saveSecurityAuditLogs(logs.slice(0, MAX_SECURITY_AUDIT_LOGS));
 
   return log;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Initialization                                                             */
+/* Initialization */
 /* -------------------------------------------------------------------------- */
 
 export async function initializeAuthStorage(): Promise<void> {
@@ -1259,7 +1225,6 @@ export async function initializeAuthStorage(): Promise<void> {
       description:
         'WMS authentication storage and default administrator were initialized.',
     });
-
     return;
   }
 
@@ -1279,7 +1244,6 @@ export async function initializeAuthStorage(): Promise<void> {
       updatedAt: getNow(),
       updatedBy: 'SYSTEM',
     } as StoredWMSUser;
-
     saveStoredUsers(users);
   }
 
@@ -1290,13 +1254,12 @@ export async function initializeAuthStorage(): Promise<void> {
       createdAt: getNow(),
       updatedAt: getNow(),
     } as StoredWMSUser);
-
     saveStoredUsers(users);
   }
 }
 
 /* -------------------------------------------------------------------------- */
-/* Authentication                                                             */
+/* Authentication */
 /* -------------------------------------------------------------------------- */
 
 function normalizeLoginCredentials(
@@ -1333,13 +1296,11 @@ function normalizeLoginCredentials(
 export async function login(
   credentials: LoginCredentials,
 ): Promise<LoginResult>;
-
 export async function login(
   loginId: string,
   password: string,
   rememberMe?: boolean,
 ): Promise<LoginResult>;
-
 export async function login(
   credentialsOrLoginId:
     | LoginCredentials
@@ -1374,7 +1335,6 @@ export async function login(
   }
 
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.userId) === loginId ||
@@ -1392,7 +1352,6 @@ export async function login(
       severity: 'Medium',
       description: 'Login failed because the user was not found.',
     });
-
     return {
       success: false,
       message: 'Invalid user ID or password.',
@@ -1425,7 +1384,6 @@ export async function login(
 
   if (!passwordValid) {
     const failedAttempts = Number(user.failedLoginAttempts || 0) + 1;
-
     const shouldLock =
       failedAttempts >= MAX_FAILED_LOGIN_ATTEMPTS;
 
@@ -1436,7 +1394,6 @@ export async function login(
       updatedAt: getNow(),
       updatedBy: 'SYSTEM',
     } as StoredWMSUser;
-
     saveStoredUsers(users);
 
     addSecurityAuditLog({
@@ -1482,7 +1439,6 @@ export async function login(
   }
 
   const now = getNow();
-
   const authenticatedUser = {
     ...user,
     failedLoginAttempts: 0,
@@ -1495,7 +1451,6 @@ export async function login(
   saveStoredUsers(users);
 
   const safeUser = setCurrentUser(authenticatedUser);
-
   const session = createLoginSession(
     safeUser,
     Boolean(credentials.rememberMe),
@@ -1528,7 +1483,6 @@ export async function login(
 
 export function logout(): void {
   const currentUser = getCurrentUser();
-
   const activeSession = getActiveLoginSession(
     currentUser?.userId,
   );
@@ -1557,7 +1511,6 @@ export function logout(): void {
 
 export function expireCurrentSession(): void {
   const currentUser = getCurrentUser();
-
   const activeSession = getActiveLoginSession(
     currentUser?.userId,
   );
@@ -1585,7 +1538,7 @@ export function expireCurrentSession(): void {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Password management                                                        */
+/* Password management */
 /* -------------------------------------------------------------------------- */
 
 export async function changePassword(
@@ -1593,7 +1546,6 @@ export async function changePassword(
   newPassword: string,
 ): Promise<PasswordResult> {
   const currentUser = getCurrentUser();
-
   if (!currentUser) {
     return {
       success: false,
@@ -1602,7 +1554,6 @@ export async function changePassword(
   }
 
   const passwordError = validateNewPassword(newPassword);
-
   if (passwordError) {
     return {
       success: false,
@@ -1611,7 +1562,6 @@ export async function changePassword(
   }
 
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(currentUser.id),
@@ -1625,7 +1575,6 @@ export async function changePassword(
   }
 
   const existingUser = users[userIndex];
-
   const currentPasswordValid = await verifyPassword(
     currentPassword,
     existingUser.passwordHash || '',
@@ -1686,7 +1635,6 @@ export async function resetUserPassword(
   performedBy?: WMSUser | string | null,
 ): Promise<PasswordResult> {
   const passwordError = validateNewPassword(temporaryPassword);
-
   if (passwordError) {
     return {
       success: false,
@@ -1695,7 +1643,6 @@ export async function resetUserPassword(
   }
 
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -1748,7 +1695,7 @@ export async function resetUserPassword(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Account status management                                                  */
+/* Account status management */
 /* -------------------------------------------------------------------------- */
 
 export function activateUser(
@@ -1756,7 +1703,6 @@ export function activateUser(
   performedBy?: WMSUser | string | null,
 ): OperationResult {
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -1808,7 +1754,6 @@ export function unlockUser(
   performedBy?: WMSUser | string | null,
 ): PasswordResult {
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -1859,7 +1804,6 @@ export function deactivateUser(
   performedBy?: WMSUser | string | null,
 ): PasswordResult {
   const users = getStoredUsers();
-
   const userIndex = users.findIndex(
     (user) =>
       normalizeText(user.id) === normalizeText(targetUserId) ||
@@ -1874,7 +1818,6 @@ export function deactivateUser(
   }
 
   const targetUser = users[userIndex];
-
   const actorUser =
     typeof performedBy === 'object' && performedBy
       ? performedBy
